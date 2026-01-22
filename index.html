@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Media Packer Lite</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dexie/3.2.4/dexie.min.js"></script>
+    <style>
+        :root { --u-black: #000000; --u-white: #ffffff; --u-gray: #f6f6f6; --u-border: #eeeeee; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--u-white); margin: 0; padding: 20px; color: var(--u-black); }
+        .header { font-size: 24px; font-weight: bold; padding-bottom: 15px; border-bottom: 2px solid var(--u-black); margin-bottom: 20px; }
+        
+        /* Form */
+        .input-group { background: var(--u-gray); padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+        .field { margin-bottom: 15px; border-bottom: 1px solid #ccc; position: relative; }
+        label { display: block; font-size: 11px; text-transform: uppercase; color: #666; margin-bottom: 4px; font-weight: bold; }
+        input[type="text"] { width: 100%; border: none; background: transparent; font-size: 16px; padding: 10px 0; outline: none; }
+        input[type="file"] { width: 100%; font-size: 14px; margin: 10px 0; }
+
+        /* 折疊式下拉選單容器 */
+        .collapse-container { margin-top: -10px; margin-bottom: 15px; }
+        .collapse-header { font-size: 12px; color: #007aff; cursor: pointer; display: flex; align-items: center; padding: 5px 0; }
+        .collapse-header::after { content: " ▼"; font-size: 10px; margin-left: 5px; }
+        .collapse-content { display: none; background: white; border: 1px solid var(--u-border); border-radius: 8px; max-height: 150px; overflow-y: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .history-item { padding: 12px; border-bottom: 1px solid var(--u-border); font-size: 14px; }
+        .history-item:active { background: #eee; }
+
+        /* Buttons */
+        .btn { display: block; width: 100%; padding: 16px; border-radius: 8px; font-size: 16px; font-weight: bold; border: none; text-align: center; margin-bottom: 12px; }
+        .btn-black { background: var(--u-black); color: var(--u-white); }
+        .btn-outline { border: 1px solid var(--u-black); background: white; }
+
+        /* Queue List */
+        .item-card { border: 1px solid var(--u-border); padding: 10px; border-radius: 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px; }
+        .thumb { width: 50px; height: 70px; object-fit: cover; border-radius: 4px; background: #ddd; }
+        .info { flex: 1; }
+        .info b { display: block; font-size: 15px; }
+        .info span { font-size: 12px; color: #666; }
+        .del { color: #ff3b30; border: none; background: none; font-size: 13px; }
+
+        #overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); color: white; justify-content: center; align-items: center; z-index: 99; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div id="overlay">🚀 正在打包並生成 ZIP...</div>
+
+<div class="header">照片備份</div>
+
+<div class="input-group">
+    <div class="field">
+        <label>1. 演員姓名</label>
+        <input type="text" id="actor" placeholder="手打輸入演員">
+    </div>
+    
+    <div class="collapse-container">
+        <div class="collapse-header" onclick="toggleCollapse()">選擇歷史演員</div>
+        <div id="historyBox" class="collapse-content"></div>
+    </div>
+
+    <div class="field">
+        <label>2. 番號</label>
+        <input type="text" id="serial" placeholder="例如：ABC-123">
+    </div>
+
+    <div class="field">
+        <label>3. 封面照片</label>
+        <input type="file" id="cover" accept="image/*">
+    </div>
+
+    <div class="field">
+        <label>4. 內容照片 (可多選)</label>
+        <input type="file" id="contents" accept="image/*" multiple>
+    </div>
+
+    <button class="btn btn-black" onclick="add()">+ 加入待辦清單</button>
+</div>
+
+<div style="font-weight: bold; margin: 20px 0 10px;">待處理 (<span id="count">0</span>)</div>
+<div id="list"></div>
+
+<div style="margin-top: 30px;">
+    <button class="btn btn-black" onclick="exportZip()">📦 匯出資料夾 (ZIP)</button>
+    <button class="btn btn-outline" onclick="clearDB()">🗑️ 清空所有資料</button>
+</div>
+
+<script>
+    const db = new Dexie("LitePackerDB");
+    db.version(1).stores({ queue: '++id, actor, serial', history: '++id, name' });
+
+    async function refresh() {
+        const items = await db.queue.toArray();
+        document.getElementById('count').innerText = items.length;
+        
+        let html = '';
+        for (const it of items) {
+            const url = URL.createObjectURL(it.cover);
+            html += `<div class="item-card">
+                <img src="${url}" class="thumb" onload="URL.revokeObjectURL('${url}')">
+                <div class="info"><b>${it.serial}</b><span>${it.actor}</span></div>
+                <button class="del" onclick="del(${it.id})">移除</button>
+            </div>`;
+        }
+        document.getElementById('list').innerHTML = html;
+
+        const hist = await db.history.toArray();
+        document.getElementById('historyBox').innerHTML = hist.map(h => 
+            `<div class="history-item" onclick="selectActor('${h.name}')">${h.name}</div>`
+        ).join('');
+    }
+
+    function toggleCollapse() {
+        const box = document.getElementById('historyBox');
+        box.style.display = box.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function selectActor(name) {
+        document.getElementById('actor').value = name;
+        toggleCollapse();
+    }
+
+    async function add() {
+        const a = document.getElementById('actor').value.trim();
+        const s = document.getElementById('serial').value.trim();
+        const c = document.getElementById('cover').files[0];
+        const con = document.getElementById('contents').files;
+
+        if (!a || !s || !c) return alert("請填寫演員、番號與封面！");
+
+        await db.queue.add({ actor: a, serial: s, cover: c, contents: Array.from(con) });
+
+        const exist = await db.history.where('name').equals(a).count();
+        if (!exist) await db.history.add({ name: a });
+
+        // 清空欄位
+        document.getElementById('actor').value = '';
+        document.getElementById('serial').value = '';
+        document.getElementById('cover').value = '';
+        document.getElementById('contents').value = '';
+        refresh();
+    }
+
+    async function del(id) { await db.queue.delete(id); refresh(); }
+
+    async function exportZip() {
+        const items = await db.queue.toArray();
+        if (items.length === 0) return;
+        document.getElementById('overlay').style.display = 'flex';
+
+        const zip = new JSZip();
+        const d = new Date();
+        const root = `備份${d.getMonth()+1}${d.getDate()}`;
+
+        for (const it of items) {
+            const path = `${root}/${it.actor}/${it.serial}/`;
+            zip.file(`${path}封面.${it.cover.name.split('.').pop()}`, it.cover);
+            it.contents.forEach((f, i) => {
+                zip.file(`${path}圖_${i+1}.${f.name.split('.').pop()}`, f);
+            });
+        }
+
+        const blob = await zip.generateAsync({type: "blob"});
+        saveAs(blob, `${root}_匯出.zip`);
+        document.getElementById('overlay').style.display = 'none';
+    }
+
+    async function clearDB() {
+        if (confirm("確定清空嗎？")) { await db.queue.clear(); await db.history.clear(); refresh(); }
+    }
+
+    refresh();
+</script>
+</body>
+</html>
