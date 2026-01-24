@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>圖片封裝 V7 (三欄 16:9)</title>
+    <title>圖片封裝 V8 (一鍵清除版)</title>
     <meta name="theme-color" content="#ff4757">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
-        :root { --primary: #ff4757; --bg: #121212; --card: #1e1e1e; }
+        :root { --primary: #ff4757; --bg: #121212; --card: #1e1e1e; --gray: #555; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 10px; padding-bottom: 120px; }
         
@@ -16,23 +16,22 @@
         h1 { font-size: 18px; margin: 0 0 12px 0; color: var(--primary); text-align: center; }
         input[type="text"] { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #444; background: #252525; color: #fff; font-size: 16px; margin-bottom: 10px; outline: none; }
         
+        .action-btns { display: flex; gap: 8px; margin-bottom: 10px; }
+        .btn-scan { flex: 2; padding: 12px; background: var(--primary); border: none; border-radius: 8px; color: #fff; font-weight: bold; font-size: 15px; cursor: pointer; }
+        .btn-clear { flex: 1; padding: 12px; background: var(--gray); border: none; border-radius: 8px; color: #fff; font-weight: bold; font-size: 15px; cursor: pointer; }
+
         .control-btns { display: flex; gap: 5px; margin-bottom: 15px; display: none; }
         .btn-small { flex: 1; padding: 8px; font-size: 11px; border-radius: 5px; border: 1px solid #444; background: #333; color: #ccc; cursor: pointer; }
 
-        /* 一排三張佈局 */
         #gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-        .card { background: var(--card); border-radius: 8px; overflow: hidden; position: relative; border: 1.5px solid #333; transition: 0.2s; }
+        .card { background: var(--card); border-radius: 8px; overflow: hidden; position: relative; border: 1.5px solid #333; }
         .card.selected { border-color: var(--primary); }
-        
-        /* 16:9 比例控制 */
         .img-container { width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: #000; position: relative; }
-        .card img { width: 100%; height: 100%; object-fit: cover; cursor: pointer; }
+        .card img { width: 100%; height: 100%; object-fit: cover; }
         
         .check-overlay { position: absolute; top: 4px; left: 4px; z-index: 10; }
         .check-overlay input { width: 18px; height: 18px; accent-color: var(--primary); }
-
-        .type-label { position: absolute; bottom: 4px; right: 4px; font-size: 9px; padding: 1px 4px; border-radius: 3px; background: rgba(255, 71, 87, 0.8); color: white; }
-
+        .type-label { position: absolute; bottom: 4px; right: 4px; font-size: 9px; padding: 1px 4px; border-radius: 3px; background: rgba(255, 71, 87, 0.8); }
         .filename { font-size: 9px; padding: 4px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; text-align: center; }
 
         .download-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #1e1e1e; padding: 12px; border-top: 1px solid #444; z-index: 100; display: none; }
@@ -42,11 +41,16 @@
 <body>
 
 <div class="header">
-    <h1>📸 圖片封裝 V7 (三欄 16:9)</h1>
+    <h1>DOWNLOAD</h1>
     <input type="text" id="actorName" placeholder="輸入演員姓名">
     <input type="text" id="urlInput" placeholder="貼上網址">
-    <button class="btn-main" onclick="fetchImages()" style="padding:10px;">掃描網頁</button>
-    <div id="status" style="font-size: 12px; color: #ffa502; text-align: center; margin-top: 8px;"></div>
+    
+    <div class="action-btns">
+        <button class="btn-scan" onclick="fetchImages()">掃描圖片</button>
+        <button class="btn-clear" onclick="clearAll()">一鍵清除</button>
+    </div>
+    
+    <div id="status" style="font-size: 12px; color: #ffa502; text-align: center; margin-top: 5px;"></div>
 </div>
 
 <div class="control-btns" id="controlBtns">
@@ -64,6 +68,19 @@
 <script>
     let imageList = []; 
     let finalID = ""; 
+
+    function clearAll() {
+        document.getElementById('actorName').value = '';
+        document.getElementById('urlInput').value = '';
+        document.getElementById('gallery').innerHTML = '';
+        document.getElementById('status').innerText = '';
+        document.getElementById('downloadBar').style.display = 'none';
+        document.getElementById('controlBtns').style.display = 'none';
+        document.getElementById('zipStatus').innerText = '';
+        imageList = [];
+        finalID = "";
+        document.getElementById('actorName').focus(); // 自動聚焦回第一個輸入框
+    }
 
     async function fetchImages() {
         const actor = document.getElementById('actorName').value.trim() || '未知名';
@@ -87,7 +104,7 @@
 
         gallery.innerHTML = '';
         imageList = [];
-        status.innerText = `規格化：${finalID}`;
+        status.innerText = `格式化：${finalID}`;
 
         try {
             const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
@@ -124,6 +141,8 @@
                 downloadBar.style.display = 'block';
                 controlBtns.style.display = 'flex';
                 updateDownloadCount();
+            } else {
+                status.innerText = '找不到符合規則的圖片';
             }
         } catch (e) { status.innerText = '抓取失敗'; }
     }
@@ -133,11 +152,7 @@
         div.className = `card ${item.selected ? 'selected' : ''}`;
         div.id = `card-${idx}`;
         div.innerHTML = `
-            <div class="check-overlay">
-                <input type="checkbox" ${item.selected ? 'checked' : ''} 
-                       ${item.type === '封面' ? 'disabled' : ''} 
-                       onchange="updateSelection(${idx}, this.checked)">
-            </div>
+            <div class="check-overlay"><input type="checkbox" ${item.selected ? 'checked' : ''} ${item.type === '封面' ? 'disabled' : ''} onchange="updateSelection(${idx}, this.checked)"></div>
             <div class="img-container">
                 <img src="${item.url}" onclick="toggleCard(${idx})" onerror="this.src='https://via.placeholder.com/160x90?text=Error'">
                 <span class="type-label">${item.type}</span>
@@ -183,12 +198,10 @@
     async function downloadZip() {
         const selectedImages = imageList.filter(i => i.selected);
         if (selectedImages.length === 0) return;
-
         const zipBtn = document.getElementById('zipBtn');
         const zipStatus = document.getElementById('zipStatus');
         const zip = new JSZip();
         zipBtn.disabled = true;
-
         try {
             for (let i = 0; i < selectedImages.length; i++) {
                 const item = selectedImages[i];
@@ -197,11 +210,11 @@
                 const blob = await imgResp.blob();
                 zip.file(`${item.actor}/${item.finalID}/${item.saveName}`, blob);
             }
-            zipStatus.innerText = '封裝壓縮中...';
+            zipStatus.innerText = '壓縮中...';
             const content = await zip.generateAsync({ type: "blob" });
             saveAs(content, `${finalID}_${selectedImages[0].actor}.zip`);
-            zipStatus.innerText = '下載完成！';
-        } catch (e) { alert('下載失敗'); }
+            zipStatus.innerText = '完成！';
+        } catch (e) { alert('失敗'); }
         finally { zipBtn.disabled = false; }
     }
 </script>
