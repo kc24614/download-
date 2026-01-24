@@ -2,83 +2,92 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>高清圖片封裝 App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>圖片封裝 V7 (三欄 16:9)</title>
     <meta name="theme-color" content="#ff4757">
-    <link rel="apple-touch-icon" href="https://via.placeholder.com/192/ff4757/fff?text=IMG">
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-
     <style>
         :root { --primary: #ff4757; --bg: #121212; --card: #1e1e1e; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { font-family: -apple-system, "Microsoft JhengHei", sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 15px; padding-bottom: 80px; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 10px; padding-bottom: 120px; }
         
-        .header { background: var(--card); padding: 20px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        h1 { font-size: 20px; margin: 0 0 15px 0; color: var(--primary); text-align: center; }
+        .header { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid #333; margin-bottom: 15px; }
+        h1 { font-size: 18px; margin: 0 0 12px 0; color: var(--primary); text-align: center; }
+        input[type="text"] { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #444; background: #252525; color: #fff; font-size: 16px; margin-bottom: 10px; outline: none; }
         
-        .input-group { display: flex; flex-direction: column; gap: 10px; }
-        input { width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #333; background: #252525; color: #fff; font-size: 16px; }
-        
-        /* 手機版按鈕優化 */
-        .btn-main { width: 100%; padding: 15px; background: var(--primary); border: none; border-radius: 10px; color: #fff; font-weight: bold; font-size: 16px; cursor: pointer; }
-        .btn-main:active { opacity: 0.8; transform: scale(0.98); }
+        .control-btns { display: flex; gap: 5px; margin-bottom: 15px; display: none; }
+        .btn-small { flex: 1; padding: 8px; font-size: 11px; border-radius: 5px; border: 1px solid #444; background: #333; color: #ccc; cursor: pointer; }
 
-        /* 下載控制台（固定在底部） */
-        .download-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #252525; padding: 15px; display: none; border-top: 1px solid #333; z-index: 100; box-shadow: 0 -5px 15px rgba(0,0,0,0.5); }
+        /* 一排三張佈局 */
+        #gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .card { background: var(--card); border-radius: 8px; overflow: hidden; position: relative; border: 1.5px solid #333; transition: 0.2s; }
+        .card.selected { border-color: var(--primary); }
         
-        #gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 20px; }
-        .card { background: var(--card); border-radius: 10px; overflow: hidden; position: relative; border: 1px solid #333; }
-        .card img { width: 100%; height: 150px; object-fit: contain; background: #000; }
-        .badge { position: absolute; top: 5px; left: 5px; padding: 3px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; background: #3498db; }
-        .badge.content { background: #2ed573; }
-        .filename { font-size: 11px; padding: 8px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+        /* 16:9 比例控制 */
+        .img-container { width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: #000; position: relative; }
+        .card img { width: 100%; height: 100%; object-fit: cover; cursor: pointer; }
+        
+        .check-overlay { position: absolute; top: 4px; left: 4px; z-index: 10; }
+        .check-overlay input { width: 18px; height: 18px; accent-color: var(--primary); }
 
-        #status { font-size: 13px; color: #ffa502; text-align: center; margin-top: 10px; }
-        .loading-spin { display: inline-block; width: 12px; height: 12px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animate: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .type-label { position: absolute; bottom: 4px; right: 4px; font-size: 9px; padding: 1px 4px; border-radius: 3px; background: rgba(255, 71, 87, 0.8); color: white; }
+
+        .filename { font-size: 9px; padding: 4px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; text-align: center; }
+
+        .download-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #1e1e1e; padding: 12px; border-top: 1px solid #444; z-index: 100; display: none; }
+        .btn-main { width: 100%; padding: 14px; background: var(--primary); border: none; border-radius: 10px; color: #fff; font-weight: bold; font-size: 15px; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1>📸 高清圖片封裝 App</h1>
-    <div class="input-group">
-        <input type="text" id="actorName" placeholder="輸入演員姓名 (用於資料夾命名)">
-        <input type="text" id="urlInput" placeholder="貼上網址 (番號頁面)">
-        <button class="btn-main" onclick="fetchImages()">開始掃描</button>
-    </div>
-    <div id="status"></div>
+    <h1>📸 圖片封裝 V7 (三欄 16:9)</h1>
+    <input type="text" id="actorName" placeholder="輸入演員姓名">
+    <input type="text" id="urlInput" placeholder="貼上網址">
+    <button class="btn-main" onclick="fetchImages()" style="padding:10px;">掃描網頁</button>
+    <div id="status" style="font-size: 12px; color: #ffa502; text-align: center; margin-top: 8px;"></div>
+</div>
+
+<div class="control-btns" id="controlBtns">
+    <button class="btn-small" onclick="toggleAll(true)">全選內容</button>
+    <button class="btn-small" onclick="toggleAll(false)">取消全選</button>
 </div>
 
 <div id="gallery"></div>
 
 <div id="downloadBar" class="download-bar">
-    <button class="btn-main" id="zipBtn" onclick="downloadZip()">封裝並下載 ZIP (.zip)</button>
-    <div id="zipStatus" style="font-size: 12px; text-align: center; margin-top: 5px; color: #888;"></div>
+    <button class="btn-main" id="zipBtn" onclick="downloadZip()">封裝下載 (選取 0 張)</button>
+    <div id="zipStatus" style="font-size: 11px; text-align: center; margin-top: 5px; color: #888;"></div>
 </div>
 
 <script>
-    let imageList = []; // 儲存待下載的清單
+    let imageList = []; 
+    let finalID = ""; 
 
     async function fetchImages() {
-        const actor = document.getElementById('actorName').value.trim() || '未知名演員';
+        const actor = document.getElementById('actorName').value.trim() || '未知名';
         const url = document.getElementById('urlInput').value.trim();
         const status = document.getElementById('status');
         const gallery = document.getElementById('gallery');
         const downloadBar = document.getElementById('downloadBar');
+        const controlBtns = document.getElementById('controlBtns');
 
-        if (!url) return alert('請輸入網址');
+        if (!url) return;
         
-        // 提取番號
         const urlParts = url.replace(/\/$/, "").split('/');
-        const targetID = urlParts[urlParts.length - 1];
+        const rawID = urlParts.pop(); 
+        const cleanID = rawID.includes('_') ? rawID.split('_').pop() : rawID;
+        
+        const prefixMatch = cleanID.match(/[a-zA-Z]+/);
+        const numberMatch = cleanID.match(/\d+/);
+        if (!prefixMatch || !numberMatch) return alert("番號格式偵測失敗");
+
+        finalID = `${prefixMatch[0].toUpperCase()}-${numberMatch[0].length >= 3 ? numberMatch[0].slice(-3) : numberMatch[0].padStart(3, '0')}`;
 
         gallery.innerHTML = '';
         imageList = [];
-        downloadBar.style.display = 'none';
-        status.innerHTML = '<span class="loading-spin"></span> 正在穿透抓取...';
+        status.innerText = `規格化：${finalID}`;
 
         try {
             const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
@@ -87,84 +96,113 @@
             const doc = new DOMParser().parseFromString(html, 'text/html');
             const imgs = Array.from(doc.querySelectorAll('img'));
 
-            imgs.forEach(img => {
+            imgs.forEach((img, index) => {
                 let src = img.getAttribute('src') || img.getAttribute('data-src');
                 if (!src) return;
                 let absUrl = new URL(src, url).href;
                 let originalUrl = absUrl.replace(/-\d+x\d+(?=\.(jpg|jpeg|png))/i, '');
                 let fileName = decodeURIComponent(originalUrl.split('/').pop().split('?')[0]);
 
-                const isCover = fileName.toLowerCase().includes(targetID.toLowerCase() + 'pl');
-                const isContent = fileName.toLowerCase().includes(targetID.toLowerCase() + '_');
+                const isCover = fileName.toLowerCase().includes(rawID.toLowerCase() + 'pl');
+                const isContent = fileName.toLowerCase().includes(rawID.toLowerCase() + '_');
                 const isThumbnail = fileName.includes('-');
 
                 if ((isCover || isContent) && !isThumbnail) {
                     if (!imageList.find(i => i.url === originalUrl)) {
                         const type = isCover ? '封面' : '內容';
-                        // 依照你的要求設定內部檔名
-                        const saveName = isCover ? `封面.${fileName.split('.').pop()}` : fileName;
+                        const ext = fileName.split('.').pop();
+                        const saveName = isCover ? `封面.${ext}` : fileName.replace(new RegExp(rawID, 'gi'), finalID);
                         
-                        imageList.push({ url: originalUrl, saveName, type, actor, targetID });
-                        renderCard(originalUrl, saveName, type);
+                        const item = { url: originalUrl, saveName, type, actor, finalID, selected: isCover };
+                        imageList.push(item);
+                        renderCard(item, imageList.length - 1);
                     }
                 }
             });
 
             if (imageList.length > 0) {
-                status.innerText = `成功找到 ${imageList.length} 張圖片`;
                 downloadBar.style.display = 'block';
-            } else {
-                status.innerText = '找不到符合規則的圖片';
+                controlBtns.style.display = 'flex';
+                updateDownloadCount();
             }
-
-        } catch (e) {
-            status.innerText = '連線失敗，請稍後再試';
-        }
+        } catch (e) { status.innerText = '抓取失敗'; }
     }
 
-    function renderCard(url, name, type) {
+    function renderCard(item, idx) {
         const div = document.createElement('div');
-        div.className = 'card';
+        div.className = `card ${item.selected ? 'selected' : ''}`;
+        div.id = `card-${idx}`;
         div.innerHTML = `
-            <span class="badge ${type === '內容' ? 'content' : ''}">${type}</span>
-            <img src="${url}" loading="lazy">
-            <span class="filename">${name}</span>
+            <div class="check-overlay">
+                <input type="checkbox" ${item.selected ? 'checked' : ''} 
+                       ${item.type === '封面' ? 'disabled' : ''} 
+                       onchange="updateSelection(${idx}, this.checked)">
+            </div>
+            <div class="img-container">
+                <img src="${item.url}" onclick="toggleCard(${idx})" onerror="this.src='https://via.placeholder.com/160x90?text=Error'">
+                <span class="type-label">${item.type}</span>
+            </div>
+            <span class="filename">${item.saveName}</span>
         `;
         document.getElementById('gallery').appendChild(div);
     }
 
+    function updateSelection(idx, isSelected) {
+        imageList[idx].selected = isSelected;
+        document.getElementById(`card-${idx}`).classList.toggle('selected', isSelected);
+        updateDownloadCount();
+    }
+
+    function toggleCard(idx) {
+        if (imageList[idx].type === '封面') return;
+        const newState = !imageList[idx].selected;
+        imageList[idx].selected = newState;
+        const cb = document.querySelector(`#card-${idx} input`);
+        if (cb) cb.checked = newState;
+        document.getElementById(`card-${idx}`).classList.toggle('selected', newState);
+        updateDownloadCount();
+    }
+
+    function toggleAll(state) {
+        imageList.forEach((item, idx) => {
+            if (item.type !== '封面') {
+                item.selected = state;
+                const cb = document.querySelector(`#card-${idx} input`);
+                if (cb) cb.checked = state;
+                document.getElementById(`card-${idx}`).classList.toggle('selected', state);
+            }
+        });
+        updateDownloadCount();
+    }
+
+    function updateDownloadCount() {
+        const count = imageList.filter(i => i.selected).length;
+        document.getElementById('zipBtn').innerText = `封裝下載 (選取 ${count} 張)`;
+    }
+
     async function downloadZip() {
-        if (imageList.length === 0) return;
+        const selectedImages = imageList.filter(i => i.selected);
+        if (selectedImages.length === 0) return;
+
         const zipBtn = document.getElementById('zipBtn');
         const zipStatus = document.getElementById('zipStatus');
         const zip = new JSZip();
-        
         zipBtn.disabled = true;
-        zipStatus.innerText = '正在封裝檔案，請勿離開頁面...';
 
         try {
-            for (let i = 0; i < imageList.length; i++) {
-                const item = imageList[i];
-                zipStatus.innerText = `下載中 (${i + 1}/${imageList.length})`;
-                
-                // 透過代理抓取圖片二進制資料
+            for (let i = 0; i < selectedImages.length; i++) {
+                const item = selectedImages[i];
+                zipStatus.innerText = `下載中 (${i + 1}/${selectedImages.length})`;
                 const imgResp = await fetch(`https://corsproxy.io/?${encodeURIComponent(item.url)}`);
                 const blob = await imgResp.blob();
-                
-                // 建立資料夾層級：演員 / 番號 / 檔名
-                const folderPath = `${item.actor}/${item.targetID}/${item.saveName}`;
-                zip.file(folderPath, blob);
+                zip.file(`${item.actor}/${item.finalID}/${item.saveName}`, blob);
             }
-
-            zipStatus.innerText = '正在壓縮...';
+            zipStatus.innerText = '封裝壓縮中...';
             const content = await zip.generateAsync({ type: "blob" });
-            saveAs(content, `${imageList[0].targetID}_${imageList[0].actor}.zip`);
+            saveAs(content, `${finalID}_${selectedImages[0].actor}.zip`);
             zipStatus.innerText = '下載完成！';
-        } catch (e) {
-            alert('封裝失敗，部分圖片可能限制抓取');
-        } finally {
-            zipBtn.disabled = false;
-        }
+        } catch (e) { alert('下載失敗'); }
+        finally { zipBtn.disabled = false; }
     }
 </script>
 </body>
