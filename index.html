@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>圖片封裝 V43 (16:9 獨立捲動)</title>
+    <title>圖片封裝 V46 (番號自主版)</title>
     <style>
         :root { --primary: #ff4757; --bg: #0f0f0f; --panel: #1e1e1e; --text: #e0e0e0; }
         * { box-sizing: border-box; }
         body { font-family: "Segoe UI", sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; }
 
-        /* 左側邊欄固定 */
+        /* 左側邊欄 */
         .sidebar { width: 380px; background: var(--panel); border-right: 1px solid #333; display: flex; flex-direction: column; padding: 15px; flex-shrink: 0; z-index: 100; }
         h1 { font-size: 18px; margin: 0 0 15px 0; color: var(--primary); text-align: center; }
         
@@ -23,69 +23,49 @@
         .btn-scan { flex: 2; padding: 12px; background: var(--primary); border: none; color: #fff; font-weight: bold; border-radius: 6px; cursor: pointer; }
         .btn-clear { flex: 1; padding: 12px; background: #444; border: none; color: #fff; border-radius: 6px; cursor: pointer; }
 
-        .task-container { height: 160px; overflow-y: auto; background: #121212; border-radius: 8px; border: 1px solid #333; }
-        .task-item { padding: 10px 12px; border-bottom: 1px solid #222; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+        /* 任務列表：番號輸入框優化 */
+        .task-container { height: 180px; overflow-y: auto; background: #121212; border-radius: 8px; border: 1px solid #333; }
+        .task-item { padding: 8px 12px; border-bottom: 1px solid #222; cursor: pointer; display: flex; align-items: center; gap: 8px; }
         .task-item.active { background: #3a1a1c; border-left: 4px solid var(--primary); }
+        
+        /* 讓使用者可以點擊並編輯的番號框 */
+        .edit-id-input { 
+            background: #000; 
+            border: 1px solid #555; 
+            color: #ff4757; 
+            font-weight: bold; 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            width: 140px; 
+            font-size: 13px;
+            cursor: text;
+        }
+        .edit-id-input:focus { border-color: #ff9f1a; outline: none; background: #111; }
+        .task-actor-label { font-size: 11px; color: #888; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
         /* 右側主內容區 */
         .main-content { flex: 1; display: flex; flex-direction: column; background: var(--bg); position: relative; }
         .top-bar { padding: 0 25px; background: #1a1a1a; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; height: 60px; flex-shrink: 0; }
         
-        /* 修正滾動與佈局：確保向下無限捲動但不重疊 */
-        #gallery { 
-            flex: 1; 
-            overflow-y: scroll; /* 強制顯示垂直捲軸 */
-            padding: 25px; 
-            display: grid; 
-            /* 使用固定最小寬度，防止擠壓 */
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); 
-            grid-auto-rows: min-content; /* 內容多高就佔多高，不自動拉伸 */
-            gap: 20px; 
-            align-content: start; /* 頂部對齊 */
-        }
+        #gallery { flex: 1; overflow-y: scroll; padding: 25px; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); grid-auto-rows: min-content; gap: 20px; align-content: start; }
 
-        /* 16:9 穩定卡片 */
-        .card { 
-            background: #1e1e1e; 
-            border-radius: 8px; 
-            position: relative; 
-            border: 2px solid #333; 
-            width: 100%;
-            aspect-ratio: 16 / 9; /* 維持 16:9 */
-            overflow: hidden;
-            display: block; /* 確保作為塊級元素存在 */
-        }
+        .card { background: #1e1e1e; border-radius: 8px; position: relative; border: 2px solid #333; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; }
         .card.selected { border-color: var(--primary); }
-        
-        .img-container { 
-            width: 100%; 
-            height: 100%; 
-            background: #000; 
-            cursor: zoom-in;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .card img { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; /* 統一預覽比例 */
-            display: block;
-        }
+        .card img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
 
-        /* UI 元件 */
-        .check-area { position: absolute; top: 0; right: 0; width: 60px; height: 60px; display: flex; justify-content: flex-end; padding: 10px; cursor: pointer; z-index: 20; }
-        .check-box { width: 28px; height: 28px; border-radius: 6px; border: 2px solid #fff; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+        /* 下載工具列 */
+        .footer-bar { padding: 15px 30px; background: #1a1a1a; border-top: 1px solid #333; display: none; flex-direction: column; gap: 10px; flex-shrink: 0; }
+        .download-config { display: flex; align-items: center; gap: 15px; background: #252525; padding: 10px 15px; border-radius: 8px; border: 1px solid #444; }
+        .filename-input { flex: 1; background: #000; border: 1px solid #555; color: #2ed573; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 14px; }
+
+        .btn-download { width: 100%; padding: 16px; background: var(--primary); border: none; color: #fff; font-weight: bold; border-radius: 10px; cursor: pointer; font-size: 16px; }
+        
+        .check-area { position: absolute; top: 0; right: 0; width: 50px; height: 50px; display: flex; justify-content: flex-end; padding: 8px; cursor: pointer; z-index: 20; }
+        .check-box { width: 24px; height: 24px; border-radius: 4px; border: 2px solid #fff; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; }
         .card.selected .check-box { background: var(--primary); border-color: var(--primary); }
-        .card.selected .check-box::after { content: '✓'; color: white; font-size: 16px; font-weight: bold; }
-        
-        .tag { position: absolute; bottom: 10px; left: 10px; font-size: 11px; padding: 4px 10px; background: rgba(0,0,0,0.8); border-radius: 4px; color: #fff; z-index: 10; pointer-events: none; }
+        .card.selected .check-box::after { content: '✓'; color: white; font-size: 14px; font-weight: bold; }
+        .tag { position: absolute; bottom: 8px; left: 8px; font-size: 10px; padding: 2px 8px; background: rgba(0,0,0,0.8); border-radius: 4px; color: #fff; z-index: 10; }
 
-        /* 底部操作列固定 */
-        .footer-bar { padding: 15px 30px; background: #1a1a1a; border-top: 1px solid #333; display: none; align-items: center; gap: 20px; flex-shrink: 0; }
-        .btn-download { flex: 1; padding: 16px; background: var(--primary); border: none; color: #fff; font-weight: bold; border-radius: 10px; cursor: pointer; font-size: 16px; }
-        
         #lightbox { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: none; align-items: center; justify-content: center; z-index: 10000; }
         #lightbox img { max-width: 98%; max-height: 98%; object-fit: contain; }
     </style>
@@ -93,12 +73,8 @@
 <body>
 
 <div class="sidebar">
-    <h1>DOWNLOAD V43</h1>
+    <h1>DOWNLOAD V46</h1>
     <div id="inputGroups">
-        <div class="input-card">
-            <input type="text" placeholder="演員名稱" class="group-actor">
-            <textarea placeholder="貼上網址 (一行一個)" class="group-urls"></textarea>
-        </div>
         <div class="input-card">
             <input type="text" placeholder="演員名稱" class="group-actor">
             <textarea placeholder="貼上網址 (一行一個)" class="group-urls"></textarea>
@@ -107,7 +83,7 @@
     <button class="btn-add-group" onclick="addGroup()">+ 增加一組演員</button>
     <div class="btn-group-main">
         <button class="btn-scan" onclick="initTasks()">開始批次掃描</button>
-        <button class="btn-clear" onclick="clearAll()">清除</button>
+        <button class="btn-clear" onclick="clearAll()">全部清除</button>
     </div>
     <div class="task-container" id="taskList"></div>
 </div>
@@ -124,8 +100,15 @@
     <div id="gallery"></div>
     
     <div class="footer-bar" id="footerBar">
-        <div style="font-size: 18px;">已選擇：<b id="countText" style="color:var(--primary);">0</b> 張</div>
-        <button class="btn-download" id="dlBtn" onclick="startDownload()">確認下載 (16:9 捲動版)</button>
+        <div class="download-config">
+            <span style="font-size: 13px; color: #aaa;">檔名範本：</span>
+            <input type="text" id="nameTemplate" class="filename-input" value="{ID}_{ACTOR}_{INDEX}">
+        </div>
+        <div style="display:flex; justify-content: space-between; align-items: center;">
+            <div style="font-size: 16px;">已選：<b id="countText" style="color:var(--primary);">0</b> 張</div>
+            <div style="font-size: 11px; color: #555;">提示：左側紅框番號可直接手動修改</div>
+        </div>
+        <button class="btn-download" id="dlBtn" onclick="startDownload()">確認下載 (使用自訂番號)</button>
     </div>
 </div>
 
@@ -174,21 +157,27 @@
         const list = document.getElementById('taskList');
         list.innerHTML = tasks.map((t, i) => `
             <div class="task-item ${activeTaskIdx === i ? 'active' : ''}" onclick="selectTask(${i})">
-                <div class="task-info"><span class="task-id">${t.finalID}</span> <span style="font-size:11px;color:#888;">(${t.actor})</span></div>
+                <input type="text" class="edit-id-input" value="${t.finalID}" 
+                    onclick="event.stopPropagation()" 
+                    oninput="tasks[${i}].finalID = this.value; updateTitle(${i});">
+                <span class="task-actor-label">${t.actor}</span>
                 <div class="status-dot ${t.status === 'done' ? 'done' : ''}"></div>
             </div>`).join('');
+    }
+
+    function updateTitle(idx) {
+        if(activeTaskIdx === idx) {
+            document.getElementById('currentTaskLabel').innerText = `目前查看：${tasks[idx].finalID} (${tasks[idx].actor})`;
+        }
     }
 
     async function selectTask(idx) {
         activeTaskIdx = idx; renderTaskList();
         const task = tasks[idx];
         document.getElementById('currentTaskLabel').innerText = `目前查看：${task.finalID} (${task.actor})`;
-        const gallery = document.getElementById('gallery');
-        gallery.innerHTML = ''; // 徹底清空，防止殘留
-        gallery.scrollTop = 0; // 捲動回頂部
-        
+        document.getElementById('gallery').innerHTML = '';
         if (!task.fetched) {
-            gallery.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding-top:100px; color:#888; font-size:18px;">正在獲取高畫質資源...</div>';
+            document.getElementById('gallery').innerHTML = '<div style="grid-column:1/-1; text-align:center; padding-top:100px; color:#888;">網頁掃描中...</div>';
             await fetchImages(task);
         } else { renderGallery(); }
     }
@@ -199,25 +188,7 @@
             const html = await res.text();
             const doc = new DOMParser().parseFromString(html, 'text/html');
             extractFromDoc(doc, task, task.url);
-
-            let targetLinks = [];
-            const walker = document.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, null, false);
-            let node;
-            while(node = walker.nextNode()) {
-                if (node.textContent.includes('※足裏シーン')) {
-                    let sibling = node.parentElement;
-                    while(sibling) {
-                        const links = sibling.querySelectorAll('a');
-                        links.forEach(a => targetLinks.push(new URL(a.getAttribute('href'), task.url).href));
-                        sibling = sibling.nextElementSibling;
-                    }
-                    break;
-                }
-            }
-            if (targetLinks.length === 0) {
-                targetLinks = Array.from(doc.querySelectorAll('a')).filter(a => a.querySelector('img')).map(a => new URL(a.getAttribute('href'), task.url).href);
-            }
-
+            let targetLinks = Array.from(doc.querySelectorAll('a')).filter(a => a.querySelector('img')).map(a => new URL(a.getAttribute('href'), task.url).href);
             const uniqueLinks = [...new Set(targetLinks)];
             for (let pageUrl of uniqueLinks) {
                 try {
@@ -228,7 +199,7 @@
             }
             task.fetched = true;
             renderGallery();
-        } catch (e) { document.getElementById('gallery').innerHTML = '解析出錯，請重試'; }
+        } catch (e) { document.getElementById('gallery').innerHTML = '解析失敗'; }
     }
 
     function extractFromDoc(doc, task, baseUrl) {
@@ -254,16 +225,14 @@
         const task = tasks[activeTaskIdx];
         const gallery = document.getElementById('gallery');
         if (task.images.length === 0) {
-            gallery.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding-top:100px; color:#888;">此任務無可提取照片。</div>';
+            gallery.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding-top:100px; color:#888;">找不到圖片。</div>';
             return;
         }
         gallery.innerHTML = task.images.map((img, i) => `
             <div class="card ${img.selected ? 'selected' : ''}" id="card-${i}">
                 <div class="tag">${img.type}</div>
                 <div class="check-area" onclick="toggleImg(event, ${i})"><div class="check-box"></div></div>
-                <div class="img-container" onclick="openLB('${img.url}')">
-                    <img src="${img.url}" loading="lazy">
-                </div>
+                <img src="${img.url}" loading="lazy" onclick="openLB('${img.url}')">
             </div>`).join('');
         document.getElementById('footerBar').style.display = 'flex';
         document.getElementById('selectionTools').style.display = 'block';
@@ -299,33 +268,39 @@
     }
 
     function clearAll() {
-        if(!confirm("確定清空所有輸入與任務？")) return;
-        document.querySelectorAll('.group-actor').forEach(i => i.value = '');
-        document.querySelectorAll('.group-urls').forEach(i => i.value = '');
-        document.getElementById('gallery').innerHTML = '';
-        tasks = []; renderTaskList();
-        document.getElementById('footerBar').style.display = 'none';
-        document.getElementById('selectionTools').style.display = 'none';
+        if(!confirm("確定清空所有任務？")) return;
+        location.reload();
     }
 
     async function startDownload() {
         const task = tasks[activeTaskIdx];
         const selected = task.images.filter(i => i.selected);
         const btn = document.getElementById('dlBtn');
+        let template = document.getElementById('nameTemplate').value.trim() || "{ID}_{ACTOR}_{INDEX}";
+
         btn.disabled = true; btn.innerText = "下載發送中...";
         let contentIdx = 1;
         for (let item of selected) {
             const ext = item.url.split('.').pop().split('?')[0];
-            let fileName = (item.type === '封面') ? `!${task.finalID}_${task.actor}_封面.${ext}` : `${task.finalID}_${task.actor}_${String(contentIdx++).padStart(2, '0')}.${ext}`;
+            
+            // 下載時讀取「當前」輸入框中的 ID
+            let finalFileName = template
+                .replace(/{ID}/g, task.finalID)
+                .replace(/{ACTOR}/g, task.actor)
+                .replace(/{INDEX}/g, String(contentIdx++).padStart(2, '0'));
+
+            if (item.type === '封面') finalFileName = "!" + finalFileName + "_封面";
+            finalFileName += "." + ext;
+
             try {
                 const resp = await fetch(proxy(item.url));
                 const blob = await resp.blob();
                 const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob); a.download = fileName; a.click();
+                a.href = URL.createObjectURL(blob); a.download = finalFileName; a.click();
                 await new Promise(r => setTimeout(r, 600));
             } catch(e) {}
         }
-        btn.disabled = false; btn.innerText = "確認下載 (16:9 捲動版)";
+        btn.disabled = false; btn.innerText = "確認下載 (使用自訂番號)";
         task.status = 'done'; renderTaskList();
     }
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.getElementById('lightbox').style.display = 'none'; });
